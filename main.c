@@ -22,15 +22,15 @@ void kill_mq(void){
         mq_close(flow);
         mq_unlink(CHANNEL_NAME);
     } 
-    while(1){
-        list *currnet;
-        currnet = getAt(0);
-        if(currnet){
-            remove_at(0);
-        }
-        else
-            break;
-    }
+    // while(1){
+    //     list *currnet;
+    //     currnet = getAt(0);
+    //     if(currnet){
+    //         remove_at(0);
+    //     }
+    //     else
+    //         break;
+    // }
 }
 
 /*
@@ -42,24 +42,39 @@ void kill_mq(void){
 */
 
 void repite(list *bk, char* buf, int size){
-    
+    struct timespec tm;
+    tm.tv_sec = 5;
+    tm.tv_nsec = 0;
     if(!bk->bk.fl){
         bk->bk.fl = mq_open(bk->bk.name, O_CREAT | O_RDWR, 0666, NULL);
+        if(bk->bk.fl == (mqd_t) -1){
+            kill_mq();
+            errExit("mq_open");
+        }
+        if(mq_getattr(bk->bk.fl, &mq)){
+            kill_mq();
+            errExit("mq_getattr");
+        }
     }
-    
-    if(bk->bk.fl == (mqd_t) -1){
-        kill_mq();
-        errExit("mq_open");
-    }
-
-    if(mq_getattr(bk->bk.fl, &mq)){
-        kill_mq();
-        errExit("mq_getattr");
-    }
-
-    if(mq_send(bk->bk.fl, buf, size, PRIO) == -1){
-        kill_mq();
-        errExit("mq_send");
+    if(mq_timedsend(bk->bk.fl, buf, size, PRIO, &tm) == -1){
+        if(errno != ETIMEDOUT){
+            kill_mq();
+            errExit("mq_send");
+        }
+        else{
+            printf("timeout to %s\n", bk->bk.name);
+            int index = 0;
+            while(1){
+                if(bk == getAt(index)){
+                    mq_close(bk->bk.fl);
+                    mq_unlink(bk->bk.name);
+                    printf("user %s was removed\n", bk->bk.name);
+                    remove_at(index);
+                    break;
+                }
+                index++;
+            }
+        }
     }
 }
 
@@ -71,7 +86,6 @@ int main(int argc, char *argv[]){
     mq.mq_curmsgs = 0;
     mq.mq_maxmsg = 10;
     mq.mq_msgsize = 256;
-
     mq_unlink(CHANNEL_NAME);
 
     flow = mq_open(CHANNEL_NAME, O_CREAT | O_RDWR, 0666, &mq); //temporary name

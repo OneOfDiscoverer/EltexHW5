@@ -10,5 +10,7 @@
 #include <unistd.h>
 #include <pthread.h>
 #include "list.h"
+#include <errno.h>
+#include <time.h>
 
 #endif
