@@ -9,6 +9,5 @@
 #include <string.h>
 #include <unistd.h>
 #include <pthread.h>
-#include "list.h"
 
 #endif
